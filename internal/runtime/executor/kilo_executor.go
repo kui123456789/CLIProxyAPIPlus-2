@@ -403,36 +403,13 @@ func FetchKiloModels(ctx context.Context, auth *cliproxyauth.Auth, cfg *config.C
 
 	var dynamicModels []*registry.ModelInfo
 	now := time.Now().Unix()
-	count := 0
 	totalCount := 0
 
 	result.ForEach(func(key, value gjson.Result) bool {
 		totalCount++
 		id := value.Get("id").String()
-		pIdxResult := value.Get("preferredIndex")
-		preferredIndex := pIdxResult.Int()
 
-		// Filter models where preferredIndex > 0 (Kilo-curated models)
-		if preferredIndex <= 0 {
-			return true
-		}
-
-		// Check if it's free. We look for :free suffix, is_free flag, or zero pricing.
-		isFree := strings.HasSuffix(id, ":free") || id == "giga-potato" || value.Get("is_free").Bool()
-		if !isFree {
-			// Check pricing as fallback
-			promptPricing := value.Get("pricing.prompt").String()
-			if promptPricing == "0" || promptPricing == "0.0" {
-				isFree = true
-			}
-		}
-
-		if !isFree {
-			log.Debugf("kilo: skipping curated paid model: %s", id)
-			return true
-		}
-
-		log.Debugf("kilo: found curated model: %s (preferredIndex: %d)", id, preferredIndex)
+		log.Debugf("kilo: found model: %s", id)
 
 		dynamicModels = append(dynamicModels, &registry.ModelInfo{
 			ID:            id,
@@ -443,14 +420,10 @@ func FetchKiloModels(ctx context.Context, auth *cliproxyauth.Auth, cfg *config.C
 			Object:        "model",
 			Created:       now,
 		})
-		count++
 		return true
 	})
 
-	log.Infof("kilo: fetched %d models from API, %d curated free (preferredIndex > 0)", totalCount, count)
-	if count == 0 && totalCount > 0 {
-		log.Warn("kilo: no curated free models found (check API response fields)")
-	}
+	log.Infof("kilo: fetched %d models from API, returning %d dynamic models", totalCount, len(dynamicModels))
 
 	staticModels := registry.GetKiloModels()
 	// Always include kilo/auto (first static model)
