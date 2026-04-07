@@ -427,7 +427,12 @@ func FetchKiloModels(ctx context.Context, auth *cliproxyauth.Auth, cfg *config.C
 			}
 		}
 
-		log.Debugf("kilo: found curated model: %s (preferredIndex: %d, free: %v)", id, preferredIndex, isFree)
+		if !isFree {
+			log.Debugf("kilo: skipping curated paid model: %s", id)
+			return true
+		}
+
+		log.Debugf("kilo: found curated model: %s (preferredIndex: %d)", id, preferredIndex)
 
 		dynamicModels = append(dynamicModels, &registry.ModelInfo{
 			ID:            id,
